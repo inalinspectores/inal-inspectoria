@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Inspectores - INAL</title>
+<link rel="stylesheet" href="style.css">
+<script src="supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+
+<header>
+  <h1>INAL - Organizador de Inspecciones</h1>
+  <div class="derecha">
+    <a class="icono" href="home.html" title="Inicio">&#8962; Menú principal</a>
+  </div>
+</header>
+
+<main class="ancho">
+  <div class="box" id="box_acceso" style="display:none;">
+    <p>No tenés acceso al modo administrador.</p>
+    <a class="volver" href="home.html">&larr; Volver al inicio</a>
+  </div>
+
+  <div id="contenido" style="display:none;">
+    <div class="box">
+      <h2 style="margin-top:0;">Agregar inspector</h2>
+      <label>Nombre</label>
+      <input type="text" id="nombre_nuevo" placeholder="Nombre y apellido">
+      <button onclick="agregarInspector()">Agregar</button>
+      <div id="mensaje_nuevo"></div>
+    </div>
+
+    <div class="box">
+      <h2 style="margin-top:0;">Inspectores registrados</h2>
+      <div id="lista_inspectores"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  (async () => {
+    await exigirSesion();
+    if (!estaEnModoDebug()) {
+      document.getElementById('box_acceso').style.display = 'block';
+      return;
+    }
+    document.getElementById('contenido').style.display = 'block';
+    await cargarLista();
+  })();
+
+  async function cargarLista() {
+    const { data } = await client.from('inspector').select('*').order('nombre');
+    const contenedor = document.getElementById('lista_inspectores');
+    contenedor.innerHTML = "";
+    (data || []).forEach(insp => {
+      const fila = document.createElement('div');
+      fila.className = 'acompanante-fila';
+      fila.style.marginTop = '10px';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = insp.nombre;
+      input.style.marginTop = '0';
+
+      const verPerfil = document.createElement('a');
+      verPerfil.className = 'boton';
+      verPerfil.style.width = 'auto';
+      verPerfil.style.marginTop = '0';
+      verPerfil.style.padding = '4px 10px';
+      verPerfil.style.fontSize = '13px';
+      verPerfil.textContent = 'Ver PERFIL';
+      verPerfil.href = 'inspector_perfil.html?id=' + insp.id;
+
+      const guardar = document.createElement('button');
+      guardar.className = 'secundario chico';
+      guardar.textContent = 'Guardar';
+      guardar.onclick = async () => {
+        const { error } = await client.from('inspector').update({ nombre: input.value.trim() }).eq('id', insp.id);
+        if (error) alert('Error: ' + error.message);
+        else cargarLista();
+      };
+
+      const eliminar = document.createElement('button');
+      eliminar.className = 'secundario chico';
+      eliminar.style.color = '#a00';
+      eliminar.style.borderColor = '#a00';
+      eliminar.textContent = 'Eliminar';
+      eliminar.onclick = async () => {
+        const { error } = await client.from('inspector').delete().eq('id', insp.id);
+        if (error) alert('No se puede eliminar: probablemente tenga inspecciones asociadas.');
+        else cargarLista();
+      };
+
+      fila.appendChild(input);
+      fila.appendChild(verPerfil);
+      fila.appendChild(guardar);
+      fila.appendChild(eliminar);
+      contenedor.appendChild(fila);
+    });
+  }
+
+  async function agregarInspector() {
+    const nombre = document.getElementById('nombre_nuevo').value.trim();
+    const mensaje = document.getElementById('mensaje_nuevo');
+    if (!nombre) {
+      mensaje.textContent = "Ingresá un nombre.";
+      mensaje.className = "error";
+      return;
+    }
+    const { error } = await client.from('inspector').insert({ nombre });
+    if (error) {
+      mensaje.textContent = "Error: " + error.message;
+      mensaje.className = "error";
+      return;
+    }
+    mensaje.textContent = "Inspector agregado.";
+    mensaje.className = "ok";
+    document.getElementById('nombre_nuevo').value = "";
+    cargarLista();
+  }
+</script>
+
+</body>
+</html>
