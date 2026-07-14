@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>PERFIL - INAL</title>
+<link rel="stylesheet" href="style.css">
+<script src="supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+
+<header>
+  <h1>INAL - Organizador de Inspecciones</h1>
+  <div class="derecha">
+    <a class="icono" href="home.html" title="Inicio">&#8962; Menú principal</a>
+  </div>
+</header>
+
+<main class="ancho">
+  <div class="carpeta-header" id="perfil_header">Cargando...</div>
+
+  <h2>Línea de tiempo</h2>
+  <div id="timeline"></div>
+
+  <a class="volver" href="buscar.html">&larr; Volver a la búsqueda</a>
+</main>
+
+<script>
+  let inspectorId;
+
+  (async () => {
+    await exigirSesion();
+    const params = new URLSearchParams(window.location.search);
+    inspectorId = params.get('id');
+    if (!inspectorId) {
+      document.getElementById('perfil_header').textContent = "No se especificó un inspector.";
+      return;
+    }
+    await cargarPerfil();
+  })();
+
+  async function cargarPerfil() {
+    const { data: inspector, error } = await client.from('inspector').select('*').eq('id', inspectorId).maybeSingle();
+    const header = document.getElementById('perfil_header');
+    if (error || !inspector) {
+      header.textContent = "No se encontró el inspector.";
+      return;
+    }
+    header.innerHTML = '<div class="id-amigable">PERFIL de ' + inspector.nombre + '</div>';
+
+    // EVENTOS donde fue líder
+    const { data: comoLider } = await client
+      .from('evento')
+      .select('*, carpeta(*, empresa(nombre))')
+      .eq('inspector_lead_id', inspectorId);
+
+    // EVENTOS donde fue acompañante
+    const { data: comoAcompanante } = await client
+      .from('evento_acompanante')
+      .select('evento(*, carpeta(*, empresa(nombre)))')
+      .eq('inspector_id', inspectorId);
+
+    const eventos = [];
+    (comoLider || []).forEach(ev => eventos.push({ ev, rol: 'Líder' }));
+    (comoAcompanante || []).forEach(row => {
+      if (row.evento) eventos.push({ ev: row.evento, rol: 'Acompañante' });
+    });
+
+    eventos.sort((a, b) => new Date(a.ev.fecha_evento) - new Date(b.ev.fecha_evento));
+
+    const contenedor = document.getElementById('timeline');
+    if (!eventos.length) {
+      contenedor.innerHTML = '<p class="resultado-sugerencia">Todavía no participó de ningún EVENTO.</p>';
+      return;
+    }
+
+    contenedor.innerHTML = "";
+    eventos.forEach(({ ev, rol }) => {
+      const empresaNombre = ev.carpeta && ev.carpeta.empresa ? ev.carpeta.empresa.nombre : '(Sin empresa)';
+      const titulo = etiquetaTipoEvento(ev.tipo_evento) + ' - ' + formatearFecha(ev.fecha_evento) + ' (' + rol + ')';
+
+      const item = document.createElement('div');
+      item.className = 'evento-item';
+
+      const tituloDiv = document.createElement('div');
+      tituloDiv.className = 'evento-titulo';
+      tituloDiv.innerHTML = '<span>' + titulo + '</span><span>&#9662;</span>';
+
+      const detalleDiv = document.createElement('div');
+      detalleDiv.className = 'evento-detalle';
+
+      let html = '<p><span class="campo">Empresa:</span> ' + empresaNombre + '</p>';
+      html += '<p><span class="campo">Observaciones:</span> ' + (ev.resumen || '-') + '</p>';
+      html += '<p><a href="carpeta_detalle.html?id=' + ev.carpeta_id + '">Ver CARPETA completa</a></p>';
+      detalleDiv.innerHTML = html;
+
+      tituloDiv.onclick = () => {
+        detalleDiv.style.display = detalleDiv.style.display === 'block' ? 'none' : 'block';
+      };
+
+      item.appendChild(tituloDiv);
+      item.appendChild(detalleDiv);
+      contenedor.appendChild(item);
+    });
+  }
+</script>
+
+</body>
+</html>
