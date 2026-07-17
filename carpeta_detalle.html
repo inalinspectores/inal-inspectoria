@@ -127,7 +127,7 @@
     contenedor.innerHTML = "";
     data.forEach((ev, i) => {
       const documentos = ev.evento_documento || [];
-      const listaDocs = documentos.map(d => d.tipo + ' ' + d.numero).join(', ');
+      const listaDocs = documentos.map(d => etiquetaTipoDocumento(d.tipo) + ' ' + d.numero).join(', ');
       const titulo = etiquetaTipoEvento(ev.tipo_evento) + ' - ' + formatearFecha(ev.fecha_evento) + (ev.nickname ? ' - ' + ev.nickname : '');
       const acompanantes = (ev.evento_acompanante || []).map(a => a.inspector ? a.inspector.nombre : '').filter(Boolean).join(', ');
 
@@ -160,7 +160,7 @@
         html += '<p class="campo">Documentos:</p>';
         documentos.forEach(d => {
           html += '<div class="box" style="padding:8px 12px; margin:6px 0;">' +
-            '<b>' + d.tipo + '</b>: ' + d.numero +
+            '<b>' + etiquetaTipoDocumento(d.tipo) + '</b>: ' + d.numero +
             (d.drive_folder_url ? ' — <a href="' + d.drive_folder_url + '" target="_blank">Ver carpeta de Drive</a>' : ' — Sin archivos vinculados') +
             '</div>';
         });
@@ -219,7 +219,7 @@
 
       const tituloDiv = document.createElement('div');
       tituloDiv.className = 'evento-titulo';
-      tituloDiv.innerHTML = '<span>' + g.tipo + ' ' + g.numero + '</span><span>&#9662;</span>';
+      tituloDiv.innerHTML = '<span>' + etiquetaTipoDocumento(g.tipo) + ' ' + g.numero + '</span><span>&#9662;</span>';
 
       const detalleDiv = document.createElement('div');
       detalleDiv.className = 'evento-detalle';

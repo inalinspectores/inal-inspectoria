@@ -22,6 +22,9 @@ const TIPOS_EVENTO = [
   ["DOCUMENTACION_ADICIONAL", "Documentación adicional"],
   ["CLAUSURA_PREVENTIVA", "Clausura preventiva"],
   ["CLAUSURA_DEFINITIVA", "Clausura definitiva"],
+  ["HACCP", "HACCP"],
+  ["BPM", "BPM"],
+  ["MONITOREO", "Monitoreo"],
   ["OTRO", "Otro"]
 ];
 
@@ -31,7 +34,32 @@ function etiquetaTipoEvento(valor) {
 }
 
 function requiereOI(tipo) {
-  return tipo === 'INSPECCION_PRESENCIAL' || tipo === 'INSPECCION_VIRTUAL';
+  return ['INSPECCION_PRESENCIAL', 'INSPECCION_VIRTUAL', 'HACCP', 'BPM', 'MONITOREO'].includes(tipo);
+}
+
+function etiquetaTipoDocumento(tipo) {
+  if (tipo === 'EXPEDIENTE') return 'Expediente - GDE';
+  if (tipo === 'SIFEGA') return 'Trámite - SIFeGA';
+  if (tipo === 'OTRO') return 'OTROS';
+  return tipo;
+}
+
+// Convierte "dd/mm/yyyy" (texto libre) a "yyyy-mm-dd" para guardar en la base.
+// Devuelve null si el formato no es válido.
+function convertirFechaTextoAISO(texto) {
+  if (!texto) return null;
+  const m = texto.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const dia = m[1].padStart(2, '0');
+  const mes = m[2].padStart(2, '0');
+  const anio = m[3];
+  return anio + '-' + mes + '-' + dia;
+}
+
+// Convierte "HH:MM" (texto libre) a algo que Postgres entienda; valida formato básico.
+function validarHoraTexto(texto) {
+  if (!texto) return true; // opcional
+  return /^([01]?\d|2[0-3]):[0-5]\d$/.test(texto.trim());
 }
 
 function formatearFecha(fechaISO) {
@@ -105,9 +133,9 @@ function crearBloqueDocumento(contenedor, valores) {
   bloque.innerHTML = `
     <label>Tipo</label>
     <select class="doc_tipo">
-      <option value="EXPEDIENTE">EXPEDIENTE</option>
-      <option value="SIFEGA">SIFEGA</option>
-      <option value="OTRO">OTRO</option>
+      <option value="EXPEDIENTE">Expediente - GDE</option>
+      <option value="SIFEGA">Trámite - SIFeGA</option>
+      <option value="OTRO">OTROS</option>
     </select>
     <label>Número</label>
     <input type="text" class="doc_numero" placeholder="EX-0000-00000000- -APN-INAL#ANMAT">

@@ -24,12 +24,12 @@
     <select id="tipo_evento" onchange="actualizarCamposCondicionales()"></select>
 
     <label>Fecha</label>
-    <input type="date" id="fecha_evento">
+    <input type="text" id="fecha_evento" placeholder="01/02/2003">
 
     <label>Nombre corto del EVENTO (opcional)</label>
     <input type="text" id="nickname">
 
-    <label>Expedientes / Trámites relacionados</label>
+    <label>Documento asociado</label>
     <div id="documentos_contenedor"></div>
     <button type="button" class="secundario chico" onclick="crearBloqueDocumento(document.getElementById('documentos_contenedor'))">+ Agregar documento</button>
 
@@ -38,7 +38,7 @@
       <input type="text" id="numero_oi" placeholder="0000/0000-INAL-000">
 
       <label>Hora</label>
-      <input type="time" id="hora_evento">
+      <input type="text" id="hora_evento" placeholder="00:00">
 
       <label>Dirección de la inspección</label>
       <input type="text" id="ubicacion_evento">
@@ -104,7 +104,7 @@
     document.getElementById('volver_carpeta').href = 'carpeta_detalle.html?id=' + carpetaId;
 
     document.getElementById('tipo_evento').value = ev.tipo_evento;
-    document.getElementById('fecha_evento').value = ev.fecha_evento ? ev.fecha_evento.split('T')[0] : '';
+    document.getElementById('fecha_evento').value = formatearFecha(ev.fecha_evento);
     document.getElementById('nickname').value = ev.nickname || '';
     document.getElementById('resumen').value = ev.resumen || '';
 
@@ -116,7 +116,7 @@
 
     if (ev.orden_inspeccion) {
       document.getElementById('numero_oi').value = ev.orden_inspeccion.numero_oi || '';
-      document.getElementById('hora_evento').value = ev.orden_inspeccion.hora || '';
+      document.getElementById('hora_evento').value = ev.orden_inspeccion.hora ? formatearHora(ev.orden_inspeccion.hora) : '';
       document.getElementById('ubicacion_evento').value = ev.orden_inspeccion.ubicacion || '';
     }
     document.getElementById('atendido_por').value = ev.atendido_por || '';
@@ -158,13 +158,19 @@
     mensaje.className = "";
 
     const tipo_evento = document.getElementById('tipo_evento').value;
-    const fecha_evento = document.getElementById('fecha_evento').value;
+    const fecha_texto = document.getElementById('fecha_evento').value.trim();
     const nickname = document.getElementById('nickname').value.trim() || null;
     const documentos = leerBloquesDocumento(document.getElementById('documentos_contenedor'));
     const resumen = document.getElementById('resumen').value.trim();
 
     if (!documentos.length) {
-      mensaje.textContent = "Agregá al menos un expediente o trámite.";
+      mensaje.textContent = "Agregá al menos un documento asociado.";
+      mensaje.className = "error";
+      return;
+    }
+    const fecha_evento = convertirFechaTextoAISO(fecha_texto);
+    if (!fecha_evento) {
+      mensaje.textContent = "La fecha debe tener el formato dd/mm/aaaa (ej: 01/02/2003).";
       mensaje.className = "error";
       return;
     }
@@ -176,10 +182,17 @@
 
       if (requiereOI(tipo_evento)) {
         const numero_oi = document.getElementById('numero_oi').value.trim();
-        const hora_evento = document.getElementById('hora_evento').value;
+        const hora_evento = document.getElementById('hora_evento').value.trim();
         const ubicacion_evento = document.getElementById('ubicacion_evento').value.trim();
         atendido_por = document.getElementById('atendido_por').value.trim() || null;
-        orden_inspeccion_id = await obtenerOCrearOI(numero_oi, fecha_evento, hora_evento, ubicacion_evento);
+
+        if (hora_evento && !validarHoraTexto(hora_evento)) {
+          mensaje.textContent = "La hora debe tener el formato hh:mm (ej: 14:30).";
+          mensaje.className = "error";
+          return;
+        }
+
+        orden_inspeccion_id = await obtenerOCrearOI(numero_oi, fecha_evento, hora_evento || null, ubicacion_evento);
         inspector_lead_id = document.getElementById('inspector_lider').value || null;
       }
 

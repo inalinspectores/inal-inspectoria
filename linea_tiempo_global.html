@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Línea de tiempo - INAL</title>
+<link rel="stylesheet" href="style.css">
+<script src="supabase.js"></script>
+<script src="config.js"></script>
+<style>
+  .contenedor-calendario {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .panel-calendario {
+    flex: 1;
+    min-width: 300px;
+    background: #fff;
+    border: 1px solid #999;
+    padding: 16px;
+  }
+  .panel-dia {
+    flex: 1;
+    min-width: 300px;
+  }
+  .nav-mes {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .nav-mes button {
+    margin-top: 0;
+    width: auto;
+    padding: 4px 10px;
+  }
+  .grid-calendario {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .grid-calendario .dia-semana {
+    font-size: 11px;
+    text-align: center;
+    color: #777;
+    padding-bottom: 4px;
+  }
+  .grid-calendario .dia {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    font-size: 13px;
+    position: relative;
+  }
+  .grid-calendario .dia:hover {
+    background: #eee;
+  }
+  .grid-calendario .dia.vacio {
+    border: none;
+    cursor: default;
+  }
+  .grid-calendario .dia.tiene-eventos {
+    font-weight: bold;
+  }
+  .grid-calendario .dia.tiene-eventos::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #444;
+  }
+  .grid-calendario .dia.coincide {
+    background: #fff3b0;
+  }
+  .grid-calendario .dia.seleccionado {
+    background: #444;
+    color: #fff;
+  }
+  .grid-calendario .dia.seleccionado::after {
+    background: #fff;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>INAL - Organizador de Inspecciones</h1>
+  <div class="derecha">
+    <a class="icono" href="home.html" title="Inicio">&#8962; Menú principal</a>
+  </div>
+</header>
+
+<main class="ancho">
+  <div class="box">
+    <label>Buscar (resalta los días con coincidencias)</label>
+    <input type="text" id="termino_busqueda" oninput="onBuscar()" placeholder="Nombre, empresa, expediente, observación...">
+  </div>
+
+  <div class="contenedor-calendario">
+    <div class="panel-calendario">
+      <div class="nav-mes">
+        <button type="button" class="secundario" onclick="cambiarMes(-1)">&larr;</button>
+        <span id="titulo_mes" style="font-weight:bold;"></span>
+        <button type="button" class="secundario" onclick="cambiarMes(1)">&rarr;</button>
+      </div>
+      <div class="grid-calendario" id="grid_calendario"></div>
+    </div>
+
+    <div class="panel-dia">
+      <h2 id="titulo_dia" style="margin-top:0;"></h2>
+      <div id="lista_dia"></div>
+    </div>
+  </div>
+
+  <a class="volver" href="home.html">&larr; Volver al inicio</a>
+</main>
+
+<script>
+  const NOMBRES_MES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const DIAS_SEMANA = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+  let anioActual, mesActual, diaSeleccionado;
+  let eventosDelMes = [];
+
+  (async () => {
+    await exigirSesion();
+    const hoy = new Date();
+    anioActual = hoy.getFullYear();
+    mesActual = hoy.getMonth();
+    diaSeleccionado = hoy.getDate();
+    await cargarMes();
+  })();
+
+  function onBuscar() {
+    renderCalendario();
+    renderListaDia();
+  }
+
+  async function cambiarMes(delta) {
+    mesActual += delta;
+    if (mesActual < 0) { mesActual = 11; anioActual--; }
+    if (mesActual > 11) { mesActual = 0; anioActual++; }
+    const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate();
+    if (diaSeleccionado > diasEnMes) diaSeleccionado = diasEnMes;
+    await cargarMes();
+  }
+
+  async function cargarMes() {
+    const inicio = anioActual + '-' + String(mesActual + 1).padStart(2, '0') + '-01';
+    const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate();
+    const fin = anioActual + '-' + String(mesActual + 1).padStart(2, '0') + '-' + String(diasEnMes).padStart(2, '0');
+
+    const { data, error } = await client
+      .from('evento')
+      .select('*, carpeta(id, empresa(nombre)), evento_documento(numero)')
+      .gte('fecha_evento', inicio)
+      .lte('fecha_evento', fin + 'T23:59:59')
+      .order('fecha_evento', { ascending: true });
+
+    eventosDelMes = (error || !data) ? [] : data.map(ev => ({
+      ...ev,
+      dia: new Date(ev.fecha_evento).getDate()
+    }));
+
+    document.getElementById('titulo_mes').textContent = NOMBRES_MES[mesActual] + ' ' + anioActual;
+    renderCalendario();
+    renderListaDia();
+  }
+
+  function eventoCoincide(ev, termino) {
+    if (!termino) return false;
+    const t = termino.toLowerCase();
+    const empresa = ev.carpeta && ev.carpeta.empresa ? ev.carpeta.empresa.nombre : '';
+    const docs = (ev.evento_documento || []).map(d => d.numero).join(' ');
+    const campos = [etiquetaTipoEvento(ev.tipo_evento), ev.nickname, ev.resumen, empresa, docs].join(' ').toLowerCase();
+    return campos.includes(t);
+  }
+
+  function renderCalendario() {
+    const grid = document.getElementById('grid_calendario');
+    grid.innerHTML = "";
+    DIAS_SEMANA.forEach(d => {
+      const el = document.createElement('div');
+      el.className = 'dia-semana';
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+
+    const primerDiaSemana = (new Date(anioActual, mesActual, 1).getDay() + 6) % 7; // lunes=0
+    const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate();
+    const termino = document.getElementById('termino_busqueda').value.trim();
+
+    for (let i = 0; i < primerDiaSemana; i++) {
+      const vacio = document.createElement('div');
+      vacio.className = 'dia vacio';
+      grid.appendChild(vacio);
+    }
+
+    for (let d = 1; d <= diasEnMes; d++) {
+      const el = document.createElement('div');
+      el.className = 'dia';
+      el.textContent = d;
+
+      const eventosDia = eventosDelMes.filter(ev => ev.dia === d);
+      if (eventosDia.length) el.classList.add('tiene-eventos');
+      if (termino && eventosDia.some(ev => eventoCoincide(ev, termino))) el.classList.add('coincide');
+      if (d === diaSeleccionado) el.classList.add('seleccionado');
+
+      el.onclick = () => {
+        diaSeleccionado = d;
+        renderCalendario();
+        renderListaDia();
+      };
+      grid.appendChild(el);
+    }
+  }
+
+  function renderListaDia() {
+    const contenedor = document.getElementById('lista_dia');
+    const termino = document.getElementById('termino_busqueda').value.trim();
+    const fechaTexto = String(diaSeleccionado).padStart(2, '0') + '/' + String(mesActual + 1).padStart(2, '0') + '/' + anioActual;
+    document.getElementById('titulo_dia').textContent = fechaTexto;
+
+    let eventosDia = eventosDelMes.filter(ev => ev.dia === diaSeleccionado);
+    if (termino) eventosDia = eventosDia.filter(ev => eventoCoincide(ev, termino));
+
+    if (!eventosDia.length) {
+      contenedor.innerHTML = '<p class="resultado-sugerencia">' + (termino ? 'Sin coincidencias ese día.' : 'No hay EVENTOS ese día.') + '</p>';
+      return;
+    }
+
+    contenedor.innerHTML = "";
+    eventosDia.forEach(ev => {
+      const empresa = ev.carpeta && ev.carpeta.empresa ? ev.carpeta.empresa.nombre : '(Sin empresa)';
+      const titulo = etiquetaTipoEvento(ev.tipo_evento) + (ev.nickname ? ' - ' + ev.nickname : '');
+
+      const item = document.createElement('div');
+      item.className = 'evento-item';
+      item.innerHTML =
+        '<div class="evento-titulo"><span>' + titulo + '</span></div>' +
+        '<div class="evento-detalle" style="display:block;">' +
+        '<p><span class="campo">Empresa:</span> ' + empresa + '</p>' +
+        '<p><span class="campo">Observaciones:</span> ' + (ev.resumen || '-') + '</p>' +
+        '<p><a href="carpeta_detalle.html?id=' + (ev.carpeta ? ev.carpeta.id : '') + '">Ver CARPETA completa</a></p>' +
+        '</div>';
+      contenedor.appendChild(item);
+    });
+  }
+</script>
+
+</body>
+</html>
