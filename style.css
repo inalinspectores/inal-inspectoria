@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap');
+
 body {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "PT Serif", Cambria, Georgia, serif;
   background: #f4f2ee;
   margin: 0;
   color: #222;
@@ -205,6 +207,9 @@ table.resultados tr:hover {
 }
 .campo-condicional {
   display: none;
+  background: #eaeaea;
+  padding: 12px 14px;
+  margin-top: 10px;
 }
 .carpeta-header {
   background: #fff;
