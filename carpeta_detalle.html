@@ -229,9 +229,16 @@
       html += '<p class="campo">Formó parte de:</p>';
       g.eventos.forEach(ev => {
         const titulo = etiquetaTipoEvento(ev.tipo_evento) + ' - ' + formatearFecha(ev.fecha_evento) + (ev.nickname ? ' - ' + ev.nickname : '');
-        html += '<p>&bull; <a href="carpeta_detalle.html?id=' + carpetaId + '#evento-' + ev.id + '" onclick="verEventoEnVistaEventos(\\'' + ev.id + '\\'); return false;">' + titulo + '</a></p>';
+        html += '<p>&bull; <a href="#" class="link-volver-evento" data-evento-id="' + ev.id + '">' + titulo + '</a></p>';
       });
       detalleDiv.innerHTML = html;
+
+      detalleDiv.querySelectorAll('.link-volver-evento').forEach(enlace => {
+        enlace.addEventListener('click', (e) => {
+          e.preventDefault();
+          verEventoEnVistaEventos(enlace.dataset.eventoId);
+        });
+      });
 
       tituloDiv.onclick = () => {
         detalleDiv.style.display = detalleDiv.style.display === 'block' ? 'none' : 'block';
