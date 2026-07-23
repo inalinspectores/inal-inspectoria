@@ -2,15 +2,19 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Crear EVENTO - INAL</title>
+<title>Agregar evento - INAL</title>
 <link rel="stylesheet" href="style.css">
 <script src="supabase.js"></script>
 <script src="config.js"></script>
+<style>
+  .fila-fecha-hora { display: flex; gap: 14px; }
+  .fila-fecha-hora > div { flex: 1; }
+</style>
 </head>
 <body>
 
 <header>
-  <h1>INAL - Organizador de Inspecciones</h1>
+  <img class="logo" src="logo.png" alt="INAL - Organizador de Inspecciones">
   <div class="derecha">
     <a class="icono" href="home.html" title="Inicio">&#8962; Menú principal</a>
   </div>
@@ -19,49 +23,27 @@
 <main>
 
   <div class="box" id="box_busqueda">
-    <h2 style="margin-top:0;">Seleccionar CARPETA</h2>
-    <label>Buscar por N° de EXPEDIENTE, empresa o ID de CARPETA</label>
+    <h2 style="margin-top:0;">Seleccionar carpeta</h2>
+    <label>Buscar por N° de expediente, empresa o ID de carpeta</label>
     <input type="text" id="busqueda_carpeta" oninput="buscarCarpetas()" placeholder="Escribí para buscar...">
     <div id="resultados_busqueda"></div>
   </div>
 
   <div class="box" id="box_carpeta_seleccionada" style="display:none;">
-    <h2 style="margin-top:0;">CARPETA seleccionada</h2>
+    <h2 style="margin-top:0;">Carpeta seleccionada</h2>
     <p id="carpeta_seleccionada_texto"></p>
-    <button type="button" class="secundario chico" onclick="deseleccionarCarpeta()">Cambiar CARPETA</button>
+    <button type="button" class="secundario chico" onclick="deseleccionarCarpeta()">Cambiar carpeta</button>
   </div>
 
   <div class="box" id="box_formulario" style="display:none;">
-    <h2 style="margin-top:0;">Nuevo EVENTO</h2>
+    <h2 style="margin-top:0;">Nuevo evento</h2>
 
-    <label>Tipo de EVENTO</label>
+    <label>Tipo de evento</label>
     <select id="tipo_evento" onchange="actualizarCamposCondicionales()">
       <option value="">Seleccionar...</option>
     </select>
 
-    <label>Fecha</label>
-    <input type="text" id="fecha_evento" placeholder="01/02/2003">
-
-    <label>Nombre corto del EVENTO (opcional)</label>
-    <input type="text" id="nickname" placeholder="Ej: Caramelos">
-
-    <label>Documento asociado</label>
-    <div id="documentos_contenedor"></div>
-    <button type="button" class="secundario chico" onclick="crearBloqueDocumento(document.getElementById('documentos_contenedor'))">+ Agregar documento</button>
-
     <div id="campos_inspeccion" class="campo-condicional">
-      <label>Orden de Inspección (OI)</label>
-      <input type="text" id="numero_oi" placeholder="0000/0000-INAL-000">
-
-      <label>Hora</label>
-      <input type="text" id="hora_evento" placeholder="00:00">
-
-      <label>Dirección de la inspección</label>
-      <input type="text" id="ubicacion_evento" placeholder="Estados Unidos 25, C.A.B.A.">
-
-      <label>Atendido por</label>
-      <input type="text" id="atendido_por" placeholder="Nombre de quien atendió la inspección">
-
       <label>Inspector líder</label>
       <select id="inspector_lider"></select>
 
@@ -70,13 +52,31 @@
       <button type="button" class="secundario chico" onclick="agregarAcompanante()">+ Agregar acompañante</button>
     </div>
 
+    <div class="fila-fecha-hora">
+      <div>
+        <label>Fecha</label>
+        <input type="text" id="fecha_evento" placeholder="01/02/2003">
+      </div>
+      <div>
+        <label>Hora</label>
+        <input type="text" id="hora_evento" placeholder="00:00">
+      </div>
+    </div>
+
+    <label>Nombre corto (opcional)</label>
+    <input type="text" id="nickname" placeholder="Ej: Caramelos">
+
+    <label>Documento asociado (EX, trámite, etc.)</label>
+    <div id="documentos_contenedor"></div>
+    <button type="button" class="secundario chico" onclick="crearBloqueDocumento(document.getElementById('documentos_contenedor'))">+ Agregar documento</button>
+
     <label>Observaciones</label>
-    <textarea id="resumen" class="grande" placeholder="Detalle de lo actuado..."></textarea>
+    <textarea id="resumen" class="grande" placeholder="Cualquier detalle importante (opcional)"></textarea>
 
     <label>Archivos asociados</label>
     <div class="subir-archivos">(Función de carga de archivos próximamente)</div>
 
-    <button onclick="crearEvento()">Crear EVENTO</button>
+    <button id="boton_registrar" onclick="crearEvento()">Registrar evento</button>
     <div id="mensaje"></div>
   </div>
 
@@ -195,19 +195,20 @@
     mensaje.className = "";
 
     if (!carpetaSeleccionada) {
-      mensaje.textContent = "Seleccioná una CARPETA primero.";
+      mensaje.textContent = "Seleccioná una carpeta primero.";
       mensaje.className = "error";
       return;
     }
 
     const tipo_evento = document.getElementById('tipo_evento').value;
     const fecha_texto = document.getElementById('fecha_evento').value.trim();
+    const hora_texto = document.getElementById('hora_evento').value.trim();
     const nickname = document.getElementById('nickname').value.trim() || null;
     const documentos = leerBloquesDocumento(document.getElementById('documentos_contenedor'));
     const resumen = document.getElementById('resumen').value.trim();
 
     if (!tipo_evento || !fecha_texto) {
-      mensaje.textContent = "Completá al menos el tipo de EVENTO y la fecha.";
+      mensaje.textContent = "Completá al menos el tipo de evento y la fecha.";
       mensaje.className = "error";
       return;
     }
@@ -222,33 +223,17 @@
       mensaje.className = "error";
       return;
     }
+    if (hora_texto && !validarHoraTexto(hora_texto)) {
+      mensaje.textContent = "La hora debe tener el formato hh:mm (ej: 14:30).";
+      mensaje.className = "error";
+      return;
+    }
 
     try {
-      let orden_inspeccion_id = null;
       let inspector_lead_id = null;
-      let atendido_por = null;
       let acompanantesIds = [];
 
       if (requiereOI(tipo_evento)) {
-        const numero_oi = document.getElementById('numero_oi').value.trim();
-        const hora_evento = document.getElementById('hora_evento').value.trim();
-        const ubicacion_evento = document.getElementById('ubicacion_evento').value.trim();
-        atendido_por = document.getElementById('atendido_por').value.trim() || null;
-
-        if (hora_evento && !validarHoraTexto(hora_evento)) {
-          mensaje.textContent = "La hora debe tener el formato hh:mm (ej: 14:30).";
-          mensaje.className = "error";
-          return;
-        }
-
-        if (ubicacion_evento && carpetaSeleccionada.ubicacion && ubicacion_evento !== carpetaSeleccionada.ubicacion) {
-          const actualizar = confirm('La dirección ingresada es distinta a la registrada en la CARPETA ("' + carpetaSeleccionada.ubicacion + '"). ¿Querés actualizarla?');
-          if (actualizar) {
-            await client.from('carpeta').update({ ubicacion: ubicacion_evento }).eq('id', carpetaSeleccionada.id);
-          }
-        }
-
-        orden_inspeccion_id = await obtenerOCrearOI(numero_oi, fecha_evento, hora_evento || null, ubicacion_evento);
         inspector_lead_id = document.getElementById('inspector_lider').value || null;
         const filas = document.querySelectorAll('#acompanantes_contenedor .acompanante-fila select');
         acompanantesIds = Array.from(filas).map(s => s.value).filter(v => v);
@@ -258,11 +243,10 @@
         .from('evento')
         .insert({
           carpeta_id: carpetaSeleccionada.id,
-          orden_inspeccion_id,
           tipo_evento,
           nickname,
           fecha_evento,
-          atendido_por,
+          hora_evento: hora_texto || null,
           inspector_lead_id,
           resumen
         })
@@ -279,8 +263,12 @@
         await client.from('evento_acompanante').insert(acompanantesIds.map(id => ({ evento_id: eventoData.id, inspector_id: id })));
       }
 
-      mensaje.textContent = "EVENTO creado correctamente.";
+      document.getElementById('boton_registrar').style.display = 'none';
+      mensaje.textContent = "Evento registrado, redirigiendo...";
       mensaje.className = "ok";
+      setTimeout(() => {
+        window.location.href = 'carpeta_detalle.html?id=' + carpetaSeleccionada.id;
+      }, 1200);
 
     } catch (err) {
       mensaje.textContent = "Error: " + err.message;
