@@ -2,35 +2,59 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CARPETA - INAL</title>
+<title>carpeta - INAL</title>
 <link rel="stylesheet" href="style.css">
 <script src="supabase.js"></script>
 <script src="config.js"></script>
+<style>
+  .fila-superior {
+    display: flex;
+    gap: 14px;
+    align-items: stretch;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .fila-superior .carpeta-header {
+    flex: 1;
+    margin-bottom: 0;
+    min-width: 250px;
+  }
+  .columna-botones {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 180px;
+  }
+  .columna-botones .boton, .columna-botones button {
+    margin-top: 0;
+  }
+</style>
 </head>
 <body>
 
 <header>
-  <h1>INAL - Organizador de Inspecciones</h1>
+  <img class="logo" src="logo.png" alt="INAL - Organizador de Inspecciones">
   <div class="derecha">
     <a class="icono" href="home.html" title="Inicio">&#8962; Menú principal</a>
   </div>
 </header>
 
 <main class="ancho">
-  <div class="carpeta-header" id="carpeta_header">Cargando...</div>
-
-  <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;">
-    <a class="boton" id="boton_agregar_evento" href="#" style="max-width:250px;">+ Agregar EVENTO</a>
-    <button type="button" class="secundario" style="max-width:250px; margin-top:0;" onclick="alternarModoEdicion()" id="boton_wrench">&#128295; Modificar EVENTOS</button>
+  <div class="fila-superior">
+    <div class="carpeta-header" id="carpeta_header">Cargando...</div>
+    <div class="columna-botones">
+      <a class="boton" id="boton_agregar_evento" href="#">Agregar nuevo</a>
+      <button type="button" class="secundario" onclick="alternarModoEdicion()" id="boton_wrench">&#128295; Modificar</button>
+    </div>
   </div>
 
   <div id="zona_debug" style="display:none; margin-bottom:16px;">
-    <button type="button" class="secundario" style="max-width:250px; margin-top:0; color:#a00; border-color:#a00;" onclick="eliminarCarpetaCompleta()">&#128465; Eliminar CARPETA completa</button>
+    <button type="button" class="secundario" style="max-width:250px; margin-top:0; color:#a00; border-color:#a00;" onclick="eliminarCarpetaCompleta()">&#128465; Eliminar carpeta completa</button>
   </div>
 
   <div style="display:flex; gap:10px; margin-bottom:10px;">
-    <button type="button" class="secundario" id="tab_eventos" style="max-width:220px; margin-top:0;" onclick="cambiarVista('eventos')">EVENTOs</button>
-    <button type="button" class="secundario" id="tab_documentos" style="max-width:250px; margin-top:0;" onclick="cambiarVista('documentos')">Expedientes y trámites</button>
+    <button type="button" class="secundario" id="tab_eventos" style="max-width:220px; margin-top:0;" onclick="cambiarVista('eventos')">Orden cronológico</button>
+    <button type="button" class="secundario" id="tab_documentos" style="max-width:250px; margin-top:0;" onclick="cambiarVista('documentos')">Ver por expediente/trámite</button>
   </div>
 
   <h2 id="titulo_vista">Línea de tiempo</h2>
@@ -49,7 +73,7 @@
     const params = new URLSearchParams(window.location.search);
     carpetaId = params.get('id');
     if (!carpetaId) {
-      document.getElementById('carpeta_header').textContent = "No se especificó una CARPETA.";
+      document.getElementById('carpeta_header').textContent = "No se especificó una carpeta.";
       return;
     }
 
@@ -89,7 +113,7 @@
     document.querySelectorAll('.wrench-evento').forEach(w => {
       w.style.display = modoEdicion ? 'inline-block' : 'none';
     });
-    document.getElementById('boton_wrench').textContent = modoEdicion ? '✕ Cerrar edición' : '🔧 Modificar EVENTOS';
+    document.getElementById('boton_wrench').innerHTML = modoEdicion ? '&#10005; Cerrar edición' : '&#128295; Modificar';
   }
 
   async function cargarCarpeta() {
@@ -97,7 +121,7 @@
       .from('carpeta').select('*, empresa(nombre)').eq('id', carpetaId).maybeSingle();
     const header = document.getElementById('carpeta_header');
     if (error || !data) {
-      header.textContent = "No se encontró la CARPETA.";
+      header.textContent = "No se encontró la carpeta.";
       return;
     }
     header.innerHTML =
@@ -106,12 +130,12 @@
       '<div class="detalle" style="color:#999; font-size:12px; margin-top:10px;">' + idAmigableCarpeta(data) + '</div>';
   }
 
-  // --- Vista EVENTOs ---
+  // --- Vista eventos (orden cronológico) ---
   async function cargarVistaEventos() {
     const contenedor = document.getElementById('timeline');
     const { data, error } = await client
       .from('evento')
-      .select('*, orden_inspeccion(*), inspector:inspector_lead_id(nombre), evento_acompanante(inspector(nombre)), evento_documento(*)')
+      .select('*, inspector:inspector_lead_id(nombre), evento_acompanante(inspector(nombre)), evento_documento(*)')
       .eq('carpeta_id', carpetaId)
       .order('fecha_evento', { ascending: true });
 
@@ -120,7 +144,7 @@
       return;
     }
     if (!data || !data.length) {
-      contenedor.innerHTML = '<p class="resultado-sugerencia">Todavía no hay EVENTOS.</p>';
+      contenedor.innerHTML = '<p class="resultado-sugerencia">Todavía no hay eventos.</p>';
       return;
     }
 
@@ -146,13 +170,8 @@
       detalleDiv.className = 'evento-detalle';
 
       let html = '';
-      if (ev.orden_inspeccion) {
-        html += '<p><span class="campo">Orden de Inspección:</span> ' + (ev.orden_inspeccion.numero_oi || '-') + '</p>';
-        html += '<p><span class="campo">Hora:</span> ' + formatearHora(ev.orden_inspeccion.hora) + '</p>';
-        html += '<p><span class="campo">Dirección:</span> ' + (ev.orden_inspeccion.ubicacion || '-') + '</p>';
-      }
-      if (ev.atendido_por) html += '<p><span class="campo">Atendido por:</span> ' + ev.atendido_por + '</p>';
-      html += '<p><span class="campo">Inspector líder:</span> ' + (ev.inspector ? '<a href="inspector_perfil.html?id=' + ev.inspector_lead_id + '">' + ev.inspector.nombre + '</a>' : '-') + '</p>';
+      if (ev.hora_evento) html += '<p><span class="campo">Hora:</span> ' + formatearHora(ev.hora_evento) + '</p>';
+      if (ev.inspector) html += '<p><span class="campo">Inspector líder:</span> <a href="inspector_perfil.html?id=' + ev.inspector_lead_id + '">' + ev.inspector.nombre + '</a></p>';
       if (acompanantes) html += '<p><span class="campo">Acompañantes:</span> ' + acompanantes + '</p>';
       html += '<p><span class="campo">Observaciones:</span> ' + (ev.resumen || '-') + '</p>';
 
@@ -181,7 +200,7 @@
     }
   }
 
-  // --- Vista Expedientes y trámites ---
+  // --- Vista expedientes y trámites ---
   async function cargarVistaDocumentos() {
     const contenedor = document.getElementById('timeline');
     const { data, error } = await client
@@ -199,7 +218,6 @@
       return;
     }
 
-    // Agrupar por (tipo, numero)
     const grupos = {};
     data.forEach(fila => {
       const clave = fila.tipo + '|' + fila.numero;
@@ -262,7 +280,7 @@
   }
 
   async function eliminarCarpetaCompleta() {
-    const confirmar = estaEnModoDebug() ? true : confirm('¿Eliminar esta CARPETA por completo, junto con todos sus EVENTOS? Esta acción no se puede deshacer.');
+    const confirmar = estaEnModoDebug() ? true : confirm('¿Eliminar esta carpeta por completo, junto con todos sus eventos? Esta acción no se puede deshacer.');
     if (!confirmar) return;
     const { error } = await client.from('carpeta').delete().eq('id', carpetaId);
     if (error) {
