@@ -14,7 +14,7 @@ async function exigirSesion() {
   return data.session;
 }
 
-// Etiquetas legibles para los tipos de EVENTO
+// Etiquetas legibles para los tipos de evento
 const TIPOS_EVENTO = [
   ["INSPECCION_PRESENCIAL", "Inspección presencial"],
   ["INSPECCION_VIRTUAL", "Inspección virtual"],
@@ -77,7 +77,7 @@ function formatearHora(horaSQL) {
 
 function idAmigableCarpeta(carpeta) {
   if (!carpeta.numero_secuencial) return carpeta.id;
-  return "CARPETA-" + String(carpeta.numero_secuencial).padStart(4, "0");
+  return "carpeta-" + String(carpeta.numero_secuencial).padStart(4, "0");
 }
 
 // Carga la lista de inspectores (son pocos, ~10) en un <select>
@@ -137,7 +137,7 @@ function crearBloqueDocumento(contenedor, valores) {
       <option value="SIFEGA">Trámite - SIFeGA</option>
       <option value="OTRO">OTROS</option>
     </select>
-    <label>Número</label>
+    <label class="doc_numero_label">Número</label>
     <input type="text" class="doc_numero" placeholder="EX-0000-00000000- -APN-INAL#ANMAT">
     <label>Carpeta de Google Drive (opcional)</label>
     <input type="url" class="doc_drive" placeholder="https://drive.google.com/drive/folders/...">
@@ -147,6 +147,22 @@ function crearBloqueDocumento(contenedor, valores) {
   bloque.querySelector('.doc_numero').value = valores.numero || '';
   bloque.querySelector('.doc_drive').value = valores.drive_folder_url || '';
   bloque.querySelector('.doc_quitar').onclick = () => bloque.remove();
+
+  function actualizarSegunTipo() {
+    const tipo = bloque.querySelector('.doc_tipo').value;
+    const label = bloque.querySelector('.doc_numero_label');
+    const input = bloque.querySelector('.doc_numero');
+    if (tipo === 'OTRO') {
+      label.textContent = 'Descripción';
+      input.placeholder = 'Ej: Nota interna sobre cambio de domicilio';
+    } else {
+      label.textContent = 'Número';
+      input.placeholder = 'EX-0000-00000000- -APN-INAL#ANMAT';
+    }
+  }
+  bloque.querySelector('.doc_tipo').addEventListener('change', actualizarSegunTipo);
+  actualizarSegunTipo();
+
   contenedor.appendChild(bloque);
   return bloque;
 }
