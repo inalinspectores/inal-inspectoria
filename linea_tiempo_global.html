@@ -128,6 +128,16 @@
   let anioActual, mesActual, diaSeleccionado;
   let eventosDelMes = [];
 
+  // Extrae el día del mes directamente del string "yyyy-mm-dd..." sin pasar
+  // por new Date(), que interpreta la fecha como UTC y puede correrla un día
+  // hacia atrás en husos horarios negativos (como Argentina, UTC-3).
+  function diaDeFechaISO(fechaISO) {
+    if (!fechaISO) return null;
+    const soloFecha = fechaISO.split('T')[0];
+    const partes = soloFecha.split('-');
+    return parseInt(partes[2], 10);
+  }
+
   (async () => {
     await exigirSesion();
     const hoy = new Date();
@@ -165,7 +175,7 @@
 
     eventosDelMes = (error || !data) ? [] : data.map(ev => ({
       ...ev,
-      dia: new Date(ev.fecha_evento).getDate()
+      dia: diaDeFechaISO(ev.fecha_evento)
     }));
 
     document.getElementById('titulo_mes').textContent = NOMBRES_MES[mesActual] + ' ' + anioActual;
