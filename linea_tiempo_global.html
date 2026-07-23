@@ -90,7 +90,7 @@
 <body>
 
 <header>
-  <h1>INAL - Organizador de Inspecciones</h1>
+  <img class="logo" src="logo.png" alt="INAL - Organizador de Inspecciones">
   <div class="derecha">
     <a class="icono" href="home.html" title="Inicio">&#8962; Menú principal</a>
   </div>
@@ -98,7 +98,7 @@
 
 <main class="ancho">
   <div class="box">
-    <label>Buscar (resalta los días con coincidencias)</label>
+    <label>Buscar coincidencias</label>
     <input type="text" id="termino_busqueda" oninput="onBuscar()" placeholder="Nombre, empresa, expediente, observación...">
   </div>
 
@@ -241,7 +241,7 @@
     if (termino) eventosDia = eventosDia.filter(ev => eventoCoincide(ev, termino));
 
     if (!eventosDia.length) {
-      contenedor.innerHTML = '<p class="resultado-sugerencia">' + (termino ? 'Sin coincidencias ese día.' : 'No hay EVENTOS ese día.') + '</p>';
+      contenedor.innerHTML = '<p class="resultado-sugerencia">' + (termino ? 'Sin coincidencias ese día.' : 'No hay eventos ese día.') + '</p>';
       return;
     }
 
