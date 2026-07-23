@@ -6,11 +6,20 @@
 <link rel="stylesheet" href="style.css">
 <script src="supabase.js"></script>
 <script src="config.js"></script>
+<style>
+  .fila-fecha-hora {
+    display: flex;
+    gap: 14px;
+  }
+  .fila-fecha-hora > div {
+    flex: 1;
+  }
+</style>
 </head>
 <body>
 
 <header>
-  <h1>INAL - Organizador de Inspecciones</h1>
+  <img class="logo" src="logo.png" alt="INAL - Organizador de Inspecciones">
   <div class="derecha">
     <a class="icono" href="home.html" title="Inicio">&#8962; Menú principal</a>
   </div>
@@ -19,7 +28,6 @@
 <main>
   <div class="box">
     <h2 style="margin-top:0;">Registrar evento</h2>
-    <p style="font-size:13px; color:#555;">Si la empresa ya tiene una CARPETA, este EVENTO se agrega ahí. Si no, se crea una CARPETA nueva automáticamente.</p>
 
     <label>Empresa o Razón social</label>
     <input type="text" id="empresa" placeholder="Ejemplos Ejemplares S.A.I.C.">
@@ -29,33 +37,14 @@
   </div>
 
   <div class="box">
-    <h2 style="margin-top:0;">Datos del EVENTO</h2>
+    <h2 style="margin-top:0;">Datos</h2>
 
-    <label>Tipo de EVENTO</label>
+    <label>Tipo de evento</label>
     <select id="tipo_evento" onchange="actualizarCamposCondicionales()">
       <option value="">Seleccionar...</option>
     </select>
 
-    <label>Fecha</label>
-    <input type="text" id="fecha_evento" placeholder="01/02/2003">
-
-    <label>Nombre corto del EVENTO (opcional)</label>
-    <input type="text" id="nickname" placeholder="Ej: Caramelos">
-
-    <label>Documento asociado</label>
-    <div id="documentos_contenedor"></div>
-    <button type="button" class="secundario chico" onclick="crearBloqueDocumento(document.getElementById('documentos_contenedor'))">+ Agregar documento</button>
-
     <div id="campos_inspeccion" class="campo-condicional">
-      <label>Orden de Inspección (OI)</label>
-      <input type="text" id="numero_oi" placeholder="0000/0000-INAL-000">
-
-      <label>Hora</label>
-      <input type="text" id="hora_evento" placeholder="00:00">
-
-      <label>Atendido por</label>
-      <input type="text" id="atendido_por" placeholder="Nombre de quien atendió la inspección">
-
       <label>Inspector líder</label>
       <select id="inspector_lider"></select>
 
@@ -64,14 +53,32 @@
       <button type="button" class="secundario chico" onclick="agregarAcompanante()">+ Agregar acompañante</button>
     </div>
 
+    <div class="fila-fecha-hora">
+      <div>
+        <label>Fecha</label>
+        <input type="text" id="fecha_evento" placeholder="01/02/2003">
+      </div>
+      <div>
+        <label>Hora</label>
+        <input type="text" id="hora_evento" placeholder="00:00">
+      </div>
+    </div>
+
+    <label>Nombre corto (opcional)</label>
+    <input type="text" id="nickname" placeholder="Ej: Caramelos">
+
+    <label>Documento asociado (EX, trámite, etc.)</label>
+    <div id="documentos_contenedor"></div>
+    <button type="button" class="secundario chico" onclick="crearBloqueDocumento(document.getElementById('documentos_contenedor'))">+ Agregar documento</button>
+
     <label>Observaciones</label>
-    <textarea id="resumen" class="grande" placeholder="Detalle de lo actuado..."></textarea>
+    <textarea id="resumen" class="grande" placeholder="Cualquier detalle importante (opcional)"></textarea>
 
     <label>Archivos asociados</label>
     <div class="subir-archivos">(Función de carga de archivos próximamente)</div>
   </div>
 
-  <button onclick="registrarEvento()">Registrar evento</button>
+  <button id="boton_registrar" onclick="registrarEvento()">Registrar evento</button>
   <div id="mensaje"></div>
 
   <a class="volver" href="home.html">&larr; Volver al inicio</a>
@@ -118,6 +125,7 @@
     const ubicacion = document.getElementById('ubicacion').value.trim();
     const tipo_evento = document.getElementById('tipo_evento').value;
     const fecha_texto = document.getElementById('fecha_evento').value.trim();
+    const hora_texto = document.getElementById('hora_evento').value.trim();
     const nickname = document.getElementById('nickname').value.trim() || null;
     const documentos = leerBloquesDocumento(document.getElementById('documentos_contenedor'));
     const resumen = document.getElementById('resumen').value.trim();
@@ -126,7 +134,7 @@
     mensaje.className = "";
 
     if (!empresaNombre || !tipo_evento || !fecha_texto) {
-      mensaje.textContent = "Completá al menos la empresa, el tipo de EVENTO y la fecha.";
+      mensaje.textContent = "Completá al menos la empresa, el tipo de evento y la fecha.";
       mensaje.className = "error";
       return;
     }
@@ -141,14 +149,14 @@
       mensaje.className = "error";
       return;
     }
-    const hora_evento = document.getElementById('hora_evento') ? document.getElementById('hora_evento').value.trim() : '';
-    if (requiereOI(tipo_evento) && hora_evento && !validarHoraTexto(hora_evento)) {
+    if (hora_texto && !validarHoraTexto(hora_texto)) {
       mensaje.textContent = "La hora debe tener el formato hh:mm (ej: 14:30).";
       mensaje.className = "error";
       return;
     }
 
     const overlay = document.getElementById('overlay_carga');
+    const botonRegistrar = document.getElementById('boton_registrar');
     overlay.style.display = 'flex';
 
     try {
@@ -157,11 +165,13 @@
 
       let empresaIdFinal = null;
       let carpetaFinal = null;
+      let nombreEmpresaFinal = empresaNombre;
 
       if (candidata) {
         const esLaMisma = confirm('Ya tenemos registrada a "' + candidata.nombre + '". ¿Es la misma empresa?');
         if (esLaMisma) {
           empresaIdFinal = candidata.id;
+          nombreEmpresaFinal = candidata.nombre;
           const { data: carpetaExistente } = await client
             .from('carpeta').select('*').eq('empresa_id', candidata.id).is('fusionada_en', null).limit(1).maybeSingle();
           if (carpetaExistente) carpetaFinal = carpetaExistente;
@@ -186,22 +196,17 @@
         carpetaFinal = carpetaData;
       } else if (ubicacion && carpetaFinal.ubicacion && ubicacion !== carpetaFinal.ubicacion) {
         overlay.style.display = 'none';
-        const actualizar = confirm('La dirección ingresada es distinta a la registrada en la CARPETA ("' + carpetaFinal.ubicacion + '"). ¿Querés actualizarla?');
+        const actualizar = confirm('La dirección ingresada es distinta a la registrada en la carpeta ("' + carpetaFinal.ubicacion + '"). ¿Querés actualizarla?');
         overlay.style.display = 'flex';
         if (actualizar) {
           await client.from('carpeta').update({ ubicacion }).eq('id', carpetaFinal.id);
         }
       }
 
-      let orden_inspeccion_id = null;
       let inspector_lead_id = null;
-      let atendido_por = null;
       let acompanantesIds = [];
 
       if (requiereOI(tipo_evento)) {
-        const numero_oi = document.getElementById('numero_oi').value.trim();
-        atendido_por = document.getElementById('atendido_por').value.trim() || null;
-        orden_inspeccion_id = await obtenerOCrearOI(numero_oi, fecha_evento, hora_evento || null, ubicacion);
         inspector_lead_id = document.getElementById('inspector_lider').value || null;
         const filas = document.querySelectorAll('#acompanantes_contenedor .acompanante-fila select');
         acompanantesIds = Array.from(filas).map(s => s.value).filter(v => v);
@@ -211,11 +216,10 @@
         .from('evento')
         .insert({
           carpeta_id: carpetaFinal.id,
-          orden_inspeccion_id,
           tipo_evento,
           nickname,
           fecha_evento,
-          atendido_por,
+          hora_evento: hora_texto || null,
           inspector_lead_id,
           resumen
         })
@@ -233,16 +237,13 @@
       }
 
       overlay.style.display = 'none';
-      const idAmigable = idAmigableCarpeta(carpetaFinal);
-      mensaje.innerHTML = 'EVENTO registrado correctamente en ' + idAmigable + '.';
+      mensaje.textContent = 'Evento registrado en ' + nombreEmpresaFinal + ', redirigiendo...';
       mensaje.className = "ok";
+      botonRegistrar.style.display = 'none';
 
-      const botonVerTimeline = document.createElement('a');
-      botonVerTimeline.className = 'boton';
-      botonVerTimeline.href = 'carpeta_detalle.html?id=' + carpetaFinal.id;
-      botonVerTimeline.textContent = 'Ver línea de tiempo de esta CARPETA';
-      mensaje.appendChild(document.createElement('br'));
-      mensaje.appendChild(botonVerTimeline);
+      setTimeout(() => {
+        window.location.href = 'carpeta_detalle.html?id=' + carpetaFinal.id;
+      }, 1200);
 
     } catch (err) {
       overlay.style.display = 'none';
